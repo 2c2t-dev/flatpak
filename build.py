@@ -119,6 +119,17 @@ def page(listed: list[dict], versions: dict, fingerprint: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>2c2t Flatpak</title>
 <meta name="description" content="Linux apps by 2c2t, as Flatpaks that keep themselves up to date.">
+<link rel="canonical" href="{URL}/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="2c2t">
+<meta property="og:title" content="2c2t Flatpak">
+<meta property="og:description" content="Linux apps by 2c2t, as Flatpaks that keep themselves up to date.">
+<meta property="og:url" content="{URL}/">
+<meta property="og:image" content="{URL}/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="2c2t Flatpak: the commands that add the repository, install an app and keep it up to date">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="icon.png">
 <link rel="stylesheet" href="style.css?{STYLE_VERSION}">
 </head>
@@ -275,6 +286,8 @@ def site(out: Path, key: Path, fingerprint: str, versions: dict) -> None:
     # 2c2t's logo: the repository's icon in the software centres, and the
     # page's.
     (out / "icon.png").write_bytes((HERE / "logo.png").read_bytes())
+    # What a link to the page shows on social networks and in chats.
+    (out / "social-preview.png").write_bytes((HERE / ".github" / "social-preview.png").read_bytes())
     (out / "2c2t.flatpakrepo").write_text(flatpakrepo(key64))
     (out / "index.html").write_text(page(listed, versions, fingerprint))
     (out / "style.css").write_text(STYLE)
