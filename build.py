@@ -143,15 +143,19 @@ def page(listed: list[dict], versions: dict, fingerprint: str) -> str:
 """
 
 
-STYLE = """:root {
-  --ground: #f6f5f9; --surface: #ffffff; --line: #e1dee9;
-  --text: #241f31; --muted: #5e5c64; --accent: #a8307e; --code: #241f31; --code-text: #f6f5f9;
+STYLE = """/* 2c2t's blue, #081FF7, from its logo: on buttons in both themes, white
+   on it; lighter for links on the dark ground, where it reads too dark. */
+:root {
+  --ground: #f5f6fb; --surface: #ffffff; --line: #dfe2ee;
+  --text: #161a2e; --muted: #555a6e; --accent: #081ff7; --button: #081ff7;
+  --code: #161a2e; --code-text: #f5f6fb;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --ground: #17151c; --surface: #221f29; --line: #34303d;
-    --text: #f2f0f6; --muted: #a9a5b3; --accent: #e35db5; --code: #0f0e13; --code-text: #f2f0f6;
+    --ground: #12141c; --surface: #1c1f2b; --line: #2f3344;
+    --text: #eef0f8; --muted: #a3a8bb; --accent: #8593ff; --button: #081ff7;
+    --code: #0b0c12; --code-text: #eef0f8;
     color-scheme: dark;
   }
 }
@@ -185,7 +189,7 @@ code { font: 0.9rem/1.5 ui-monospace, "JetBrains Mono", monospace; }
 .about p:first-of-type { color: var(--muted); }
 .links { display: flex; gap: 16px; align-items: center; margin: 0; }
 .button {
-  background: var(--accent); color: #fff; text-decoration: none; font-weight: 600;
+  background: var(--button); color: #fff; text-decoration: none; font-weight: 600;
   padding: 6px 16px; border-radius: 999px;
 }
 footer { color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); padding-top: 20px; }
