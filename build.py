@@ -47,7 +47,7 @@ def flatpakrepo(key64: str) -> str:
         f"Url={URL}/repo/\n"
         f"Homepage={URL}/\n"
         "Comment=Linux apps by 2c2t\n"
-        f"Icon={URL}/icon.svg\n"
+        f"Icon={URL}/icon.png\n"
         f"GPGKey={key64}\n"
     )
 
@@ -110,13 +110,13 @@ def page(listed: list[dict], versions: dict, fingerprint: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>2c2t Flatpak</title>
 <meta name="description" content="Linux apps by 2c2t, as Flatpaks that keep themselves up to date.">
-<link rel="icon" href="icon.svg">
+<link rel="icon" href="icon.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main>
     <header>
-      <h1>2c2t Flatpak</h1>
+      <h1><img src="icon.png" width="56" height="56" alt="">2c2t Flatpak</h1>
       <p class="lead">Linux apps by 2c2t, as Flatpaks that keep themselves up to date
         with the rest of your apps.</p>
     </header>
@@ -168,7 +168,10 @@ main {
   max-width: 760px; margin: 0 auto; padding: 48px 16px;
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px;
 }
-h1 { font-size: 2.2rem; line-height: 1.2; margin: 0 0 8px; text-wrap: balance; }
+h1 {
+  font-size: 2.2rem; line-height: 1.2; margin: 0 0 8px; text-wrap: balance;
+  display: flex; align-items: center; gap: 14px;
+}
 h2 { font-size: 1.3rem; margin: 0 0 12px; }
 h3 { font-size: 1.15rem; margin: 0; }
 p { margin: 0 0 12px; }
@@ -206,8 +209,9 @@ def site(out: Path, key: Path, fingerprint: str, versions: dict) -> None:
         with urllib.request.urlopen(app["icon"], timeout=30) as icon:
             (out / "icons" / f"{app['id']}.svg").write_bytes(icon.read())
         (out / f"{app['id']}.flatpakref").write_text(flatpakref(app, key64))
-    # The repository's own icon is the first app's, until 2c2t has one.
-    (out / "icon.svg").write_bytes((out / "icons" / f"{listed[0]['id']}.svg").read_bytes())
+    # 2c2t's logo: the repository's icon in the software centres, and the
+    # page's.
+    (out / "icon.png").write_bytes((HERE / "logo.png").read_bytes())
     (out / "2c2t.flatpakrepo").write_text(flatpakrepo(key64))
     (out / "index.html").write_text(page(listed, versions, fingerprint))
     (out / "style.css").write_text(STYLE)
