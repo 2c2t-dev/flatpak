@@ -12,6 +12,7 @@ workflow runs it as it is.
 
 import argparse
 import base64
+import hashlib
 import html
 import json
 import subprocess
@@ -111,7 +112,7 @@ def page(listed: list[dict], versions: dict, fingerprint: str) -> str:
 <title>2c2t Flatpak</title>
 <meta name="description" content="Linux apps by 2c2t, as Flatpaks that keep themselves up to date.">
 <link rel="icon" href="icon.png">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?{STYLE_VERSION}">
 </head>
 <body>
   <main>
@@ -199,6 +200,12 @@ footer { color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--lin
 footer code { overflow-wrap: anywhere; }
 @media (max-width: 480px) { .app { grid-template-columns: minmax(0, 1fr); } }
 """
+
+
+# Named by what it holds, so a browser keeping the stylesheet a while
+# takes a new one as soon as it changes, rather than laying the new page
+# out with the old.
+STYLE_VERSION = hashlib.sha256(STYLE.encode()).hexdigest()[:12]
 
 
 def site(out: Path, key: Path, fingerprint: str, versions: dict) -> None:
