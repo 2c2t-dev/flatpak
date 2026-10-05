@@ -68,19 +68,27 @@ def flatpakref(app: dict, key64: str) -> str:
 
 
 def headers(listed: list[dict]) -> str:
-    """The page loads its own files and nothing else; what adds the
-    repository and what installs an app carry their own types, so a browser
-    hands them to GNOME Software or Discover."""
+    """The page loads its own files and nothing else, but for Cloudflare Web
+    Analytics, which Cloudflare adds to it and which counts visits without
+    cookies; what adds the repository and what installs an app carry their
+    own types, so a browser hands them to GNOME Software or Discover."""
     lines = [
         "/*",
         "  Content-Security-Policy: default-src 'none'; style-src 'self'; img-src 'self'; "
-        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+        "script-src 'self' https://static.cloudflareinsights.com; "
+        "connect-src 'self' https://cloudflareinsights.com; require-trusted-types-for 'script'; "
+        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests",
         "  X-Content-Type-Options: nosniff",
         "  Referrer-Policy: strict-origin-when-cross-origin",
         "  Strict-Transport-Security: max-age=63072000; includeSubDomains",
         "",
         "/2c2t.flatpakrepo",
         "  Content-Type: application/vnd.flatpak.repo",
+        "",
+        "# The sitemap holds no script; without the policy, a browser shows it",
+        "# with its own XML viewer, which the policy would leave unstyled.",
+        "/sitemap.xml",
+        "  ! Content-Security-Policy",
     ]
     for app in listed:
         lines += ["", f"/{app['id']}.flatpakref", "  Content-Type: application/vnd.flatpak.ref"]
@@ -138,6 +146,54 @@ def page(listed: list[dict], versions: dict, fingerprint: str) -> str:
         <code>{e(fingerprint)}</code>.</p>
       <p><a href="https://github.com/2c2t-dev/flatpak">How this repository is made</a></p>
     </footer>
+  </main>
+</body>
+</html>
+"""
+
+
+def llms(listed: list[dict]) -> str:
+    """What the site is, for a language model reading it."""
+    apps_lines = "\n".join(
+        f"- [{app['name']}]({app['homepage']}): {app['summary']}; "
+        f"`flatpak install {REMOTE} {app['id']}`"
+        for app in listed
+    )
+    return f"""# 2c2t Flatpak
+
+> The Flatpak repository of 2c2t's Linux apps. Added once, it keeps them up to date with the rest of a system's Flatpaks; the apps run on Flathub's runtimes.
+
+## Adding the repository
+
+- [2c2t.flatpakrepo]({URL}/2c2t.flatpakrepo): `flatpak remote-add --if-not-exists {REMOTE} {URL}/2c2t.flatpakrepo`
+
+## Apps
+
+{apps_lines}
+
+## Source
+
+- [How the repository is made](https://github.com/2c2t-dev/flatpak)
+"""
+
+
+def not_found() -> str:
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not found · 2c2t Flatpak</title>
+<link rel="icon" href="/icon.png">
+<link rel="stylesheet" href="/style.css?{STYLE_VERSION}">
+</head>
+<body>
+  <main>
+    <header>
+      <h1><img src="/icon.png" width="56" height="56" alt="">Not found</h1>
+      <p class="lead">Nothing is at this address. <a href="/">The repository and its apps</a>
+        are on the home page.</p>
+    </header>
   </main>
 </body>
 </html>
@@ -223,6 +279,18 @@ def site(out: Path, key: Path, fingerprint: str, versions: dict) -> None:
     (out / "index.html").write_text(page(listed, versions, fingerprint))
     (out / "style.css").write_text(STYLE)
     (out / "_headers").write_text(headers(listed))
+    (out / "404.html").write_text(not_found())
+    (out / "llms.txt").write_text(llms(listed))
+    # The repository is binary objects, nothing to index.
+    (out / "robots.txt").write_text(
+        f"User-agent: *\nAllow: /\nDisallow: /repo/\n\nSitemap: {URL}/sitemap.xml\n"
+    )
+    (out / "sitemap.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"  <url><loc>{URL}/</loc></url>\n"
+        "</urlset>\n"
+    )
     (out / "versions.json").write_text(json.dumps(versions, indent=2, sort_keys=True) + "\n")
 
 
