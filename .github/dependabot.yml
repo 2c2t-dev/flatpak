@@ -1,0 +1,12 @@
+# Once a week, a pull request for the actions the workflow uses. Minor and
+# patch updates come together, so a week brings one pull request at most.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies]
+    groups:
+      actions:
+        update-types: [minor, patch]
