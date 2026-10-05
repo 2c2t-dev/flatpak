@@ -1,0 +1,10 @@
+[
+  {
+    "id": "dev._2c2t.Pipedeck",
+    "name": "Pipedeck",
+    "summary": "The PipeWire mixer for Linux streamers",
+    "repository": "2c2t-dev/PipeDeck",
+    "homepage": "https://pipedeck.2c2t.dev/",
+    "icon": "https://raw.githubusercontent.com/2c2t-dev/PipeDeck/main/crates/pipedeck/data/dev._2c2t.Pipedeck.svg"
+  }
+]

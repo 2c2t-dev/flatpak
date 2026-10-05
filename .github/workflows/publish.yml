@@ -1,0 +1,113 @@
+name: Publish
+
+# Gathers the Flatpak of each app's latest release into one repository,
+# signs it, and publishes it on flatpak.2c2t.dev with the page build.py
+# makes. Every hour it looks for new releases and publishes only when there
+# is one; by hand, or after a change here, it publishes whatever.
+#
+# It needs the organisation's secrets: FLATPAK_GPG_KEY, an armoured private
+# key without a passphrase, which the apps already in users' hands were
+# signed with; CLOUDFLARE_API_TOKEN, a token allowed to edit Cloudflare
+# Pages; and CLOUDFLARE_ACCOUNT_ID.
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FLATPAK_GPG_KEY: ${{ secrets.FLATPAK_GPG_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Check for the secrets
+        run: |
+          for name in FLATPAK_GPG_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [ -z "$(printenv "$name")" ]; then
+              echo "::error::$name is not set: the repository cannot be published."
+              exit 1
+            fi
+          done
+
+      - uses: actions/checkout@v7
+
+      # What is published says which release of each app it holds: when the
+      # hour's look finds the same, there is nothing to do.
+      - name: Look for new releases
+        id: releases
+        run: |
+          python3 build.py versions > versions.json
+          cat versions.json
+          if [ "$GITHUB_EVENT_NAME" = schedule ] \
+              && curl -fsS https://flatpak.2c2t.dev/versions.json | cmp -s - versions.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No new release since the last publication."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Flatpak
+        if: steps.releases.outputs.changed == 'true'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends flatpak ostree
+
+      - name: Take the signing key
+        if: steps.releases.outputs.changed == 'true'
+        id: key
+        run: |
+          printf '%s\n' "$FLATPAK_GPG_KEY" | gpg --batch --import
+          fingerprint=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/ { print $10; exit }')
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+          gpg --export "$fingerprint" > key.gpg
+
+      # Each app's bundle, from its latest release, imported and signed;
+      # then the summary, the AppStream data the software centres read, and
+      # the deltas, signed too.
+      - name: Make the repository
+        if: steps.releases.outputs.changed == 'true'
+        run: |
+          key=${{ steps.key.outputs.fingerprint }}
+          ostree init --mode=archive-z2 --repo=repo
+          python3 -c "import json; [print(a['repository']) for a in json.load(open('apps.json'))]" |
+            while read -r repository; do
+              rm -rf bundles && mkdir bundles
+              gh release download --repo "$repository" --pattern '*.flatpak' --dir bundles
+              for bundle in bundles/*.flatpak; do
+                flatpak build-import-bundle --gpg-sign="$key" --no-update-summary repo "$bundle"
+              done
+            done
+          flatpak build-update-repo --gpg-sign="$key" --title=2c2t --comment="Linux apps by 2c2t" \
+            --homepage=https://flatpak.2c2t.dev/ --default-branch=stable \
+            --generate-static-deltas --prune repo
+          ostree refs --repo=repo
+          echo "$(find repo -type f | wc -l) files in the repository, $(du -sh repo | cut -f1)"
+
+      - name: Make the site
+        if: steps.releases.outputs.changed == 'true'
+        run: |
+          python3 build.py site _site --key key.gpg \
+            --fingerprint "${{ steps.key.outputs.fingerprint }}" --versions versions.json
+          cp -r repo _site/repo
+
+      # The project is made on the first run, and left as it is after.
+      - name: Make the Cloudflare Pages project
+        if: steps.releases.outputs.changed == 'true'
+        run: npx --yes wrangler@4 pages project create 2c2t-flatpak --production-branch main || true
+
+      - uses: cloudflare/wrangler-action@v4
+        if: steps.releases.outputs.changed == 'true'
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy _site --project-name 2c2t-flatpak --branch main
